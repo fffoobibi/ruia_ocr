@@ -90,7 +90,7 @@ class OcrRequest(Request):
         service: 'BaseOcrService'=None,
         **kwargs,
     ):
-        self.uri = uri
+        self.uri =  uri or url
         self.region = region
         self.service = service
         super(OcrRequest, self).__init__(

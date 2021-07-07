@@ -1,37 +1,53 @@
 # ruia_ocr
 
 #### 介绍
-一款ruia_ocr插件, 识别本地或远程图片
+一款ruia_ocr插件, 使用baidu-aip接口识别本地或远程图片
 
 #### 软件架构
-软件架构说明
-
+    依赖的库: baidu-aip, ruia
+    运行环境: python 3.7, python 3.8, python 3.9
 
 #### 安装教程
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+1.  python setup.py install
 
 #### 使用说明
+实现BaseOcrService
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+    from ruia import Item
+    from ruia_ocr import (OcrField, BaiduOcrService, OcrSpider, OcrResponse, 
+                         OcrRequest)
 
-#### 参与贡献
+    app_id = 'xxxx'
+    api_key ='xxxx' 
+    secret_key = 'xxxx'
 
-1.  Fork 本仓库
-2.  新建 Feat_xxx 分支
-3.  提交代码
-4.  新建 Pull Request
+    img = ".\test.jpg"
+    img2 = ".\test2.png"
+    img3 = r'http://static.zongheng.com/upload/cover/07/f9/07f9c3d9899a7df6284c1d340d45ba8c.jpeg'
+        
+    class OcrItem(Item):
+        title = OcrField(re_select=r'.*')
 
+    class MySpider(OcrSpider):
 
-#### 特技
+        ocr_service = BaiduOcrService(app_id, api_key, secret_key)
 
-1.  使用 Readme\_XXX.md 来支持不同的语言，例如 Readme\_en.md, Readme\_zh.md
-2.  Gitee 官方博客 [blog.gitee.com](https://blog.gitee.com)
-3.  你可以 [https://gitee.com/explore](https://gitee.com/explore) 这个地址来了解 Gitee 上的优秀开源项目
-4.  [GVP](https://gitee.com/gvp) 全称是 Gitee 最有价值开源项目，是综合评定出的优秀开源项目
-5.  Gitee 官方提供的使用手册 [https://gitee.com/help](https://gitee.com/help)
-6.  Gitee 封面人物是一档用来展示 Gitee 会员风采的栏目 [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+        ocr_region = '1,1,0.5,0.99'
+
+        start_urls = [img, img2, img3]
+
+        concurrency = 1
+
+        async def parse(self, response: OcrResponse):
+            item = await OcrItem.get_item(html=await response.text())
+            return item
+
+        OcrRequest: 
+            OcrRequest(url=img_source, service=self.ocr_service)
+
+            
+
+    if __name__ == '__main__':
+        MySpider.start()
+
