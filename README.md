@@ -33,6 +33,14 @@
 
         ocr_service = BaiduOcrService(app_id, api_key, secret_key)
 
+        # ocr_region:str  x1,y1,x2,y2;...
+        # default: '' means  the whole picture to ocr
+        # 1,1,0.5,0.5 means: cut from image 1,1, image.width * 0.5, image.height * 0.5
+        # 1,1,200,200 means: cut from image 1,1,200,200 
+        # 1,1,0.5,0.5;0.5,0.5,0.99,0.99 means: 
+        #   cut from image 1,1,image.width * 0.5, image.height * 0.5 get image1  
+        #   cut from image image.width * 0.5, image.height * 0.5 ,image.width * 0.99, image.height * 0.99  get image2
+        #   stitching image1 image2 by row get new image to ocr
         ocr_region = '1,1,0.5,0.99'
 
         start_urls = [img, img2, img3]
@@ -43,8 +51,7 @@
             item = await OcrItem.get_item(html=await response.text())
             return item
 
-        OcrRequest: 
-            OcrRequest(url=img_source, service=self.ocr_service)
+
 
             
 
