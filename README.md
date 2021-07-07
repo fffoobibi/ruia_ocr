@@ -51,6 +51,8 @@
             item = await OcrItem.get_item(html=await response.text())
             return item
 
+    TIPS:
+        use OcrRequest(url=image_source, sevice=ocr_service)
 
 
             
