@@ -107,7 +107,7 @@ class OcrRequest(Request):
 
     async def _make_request(self):
         """Make a request by using aiohttp"""
-        self.logger.info(f"<{self.method}: {self.uri} {self.url}>")
+        self.logger.info(f"<{self.method}: URI:{self.uri} URL:{self.url}>")
 
         await self.service.request_process(self)
 
