@@ -39,7 +39,7 @@
         # 1,1,200,200 means: cut from image 1,1,200,200 
         # 1,1,0.5,0.5;0.5,0.5,0.99,0.99 means: 
         #   cut from image 1,1,image.width * 0.5, image.height * 0.5 get image1  
-        #   cut from image image.width * 0.5, image.height * 0.5 ,image.width * 0.99, image.height * 0.99  get image2
+        #   cut from image image.width*0.5, image.height*0.5 ,image.width*0.99, image.height*0.99  get image2
         #   stitching image1 image2 by row get new image to ocr
         ocr_region = '1,1,0.5,0.99'
 
