@@ -3,10 +3,6 @@
 #### 介绍
 一款ruia_ocr插件, 使用baidu-aip接口识别本地或远程图片
 
-#### 软件架构
-    依赖的库: baidu-aip, ruia
-    运行环境: python 3.7, python 3.8, python 3.9
-
 #### 安装教程
 
 1.  python setup.py install
