@@ -130,13 +130,14 @@ class BaseOcrService(object):
         '''
         :param payloads: The parameters of the service you requested,is a python dict
 
+        dft:
+            payload = self._service_type.dft_payload.copy()
+            payload.update(payloads)
+            self._service_payload = payloads
+
         '''
         return NotImplemented
-
-        payload = self._service_type.dft_payload.copy()
-        payload.update(payloads)
-        self._service_payload = payloads
-
+     
     register_payload = set_payload
 
     def update_dft_payload(self, payloads) -> None:
@@ -207,7 +208,7 @@ class BaseOcrService(object):
 
     def get_ocr_image(self, file_path: str, request, region: RegionStr=None) -> Any:
         '''
-        获取ocr最终提交的图片数据
+        Converting the local-image to be detected becomes the data that Ocr api eventually sends
         '''
         _image = Image.open(file_path)
         _image = self._get_image_by_region(_image, region)
@@ -241,6 +242,7 @@ class BaseOcrService(object):
 class BaiDuOcrResult(str, Enum):
     BY_ROW = '\n'
     JOIN = ''
+
 
 class BaiduOcrService(BaseOcrService):
     '''
