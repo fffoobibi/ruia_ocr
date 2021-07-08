@@ -9,22 +9,15 @@ import json
 
 from PIL import Image
 from io import BytesIO
-from asyncio import Semaphore
-from inspect import isawaitable
 from urllib.parse import urlparse, quote, urlencode
 from typing import Any, List, Tuple, Union
+from enum import Enum
 
 from ruia import Request
 from ruia.utils import get_logger
 from ruia_ocr.exceptions import ServicePayloadsError, ImageTypeError
 from ruia_ocr.configs import *
 
-service_type_dic = {
-    BAIDU_ACCURATEBASIC_TYPE: BAIDU_ACCURATEBASIC_PAYLOAD,
-    BAIDU_ACCURATE_TYPE: BAIDU_ACCURATE_PAYLOAD,
-    BAIDU_GENERALBASIC_TYPE: BAIDU_GENERALBASIC_PAYLOAD,
-    BAIDU_GENERAL_TYPE: BAIDU_GENERAL_PAYLOAD
-}
 logger = get_logger('Spider')
 
 _Number = Union[int, float]
@@ -41,6 +34,8 @@ try:
 except:
     # Fixed api implementation, not recommended
     _access_token_url = 'https://aip.baidubce.com/oauth/2.0/token'
+
+
 
 __all__ = ['BaiduOcrService', 'BaseOcrService']
 
@@ -115,11 +110,14 @@ class BaseOcrService(object):
     service_types = None
 
     def __init__(self):
-        self._service_url = None
-        self._service_type = None
+        self._service_url: str = None
+        self._service_type: BaseServiceTypes = None
         self._service_payload = None
         self._ocr_options = {}
-    
+
+    def __repr__(self):
+        return f'{self.name}<{self.service_url}, {self.service_type}>'
+
     @property
     def ocr_options(self):
         return self._ocr_options
@@ -128,43 +126,50 @@ class BaseOcrService(object):
     def ocr_options(self, value):
         self._ocr_options = value
 
-    def uri_process_service(self, uri: str, region: RegionStr) -> Tuple[str, Image.Image]:
-        pass
-
-    def register_payload(self, *args, **kwargs):
-        raise NotImplementedError
-
-    def service_payload(self, *args, **kwargs):
-        raise NotImplementedError
-
-    def service_type(self, *args, **kwargs):
-        raise NotImplementedError
-
-    def service_url(self, *args, **kwargs):
-        raise NotImplementedError
-
-    async def hook_func(self, request, spider_ins):
-        pass
-
-    async def _localImage_or_webImage_parse(self, request: Request,
-                                            spider_ins):
-        pass
-
-    async def request_process(self, request: Request, spider_ins=None):
+    def set_payload(self, payloads: Any) -> None:
         '''
-        The action of the real modification request before the request is sent
-        :param request: Request
+        :param payloads: The parameters of the service you requested,is a python dict
+
         '''
-        raise NotImplementedError
+        return NotImplemented
+
+        payload = self._service_type.dft_payload.copy()
+        payload.update(payloads)
+        self._service_payload = payloads
+
+    register_payload = set_payload
+
+    def update_dft_payload(self, payloads) -> None:
+        self._service_type.update_dft_payload(payloads)
+
+    @property
+    def service_url(self):
+        '''
+        :return:  Return the servicse url of your task requirements
+        '''
+        if self._service_url is None:
+            self._service_url = self._service_type.url
+        return self._service_url
+
+    @property
+    def service_type(self):
+        '''
+        :return:  Return your service type
+        '''
+        return self._service_type
+
+    @property
+    def service_payload(self):
+        '''
+        :return: Return the parameters that your service needs to send
+        '''
+        return self._service_payload
 
     async def aio_request(self, image_path: str, region: RegionStr=None, *, img: Image.Image=None) -> dict:
-        pass
+        return NotImplemented
         
     def request(self, image_path: str=None, region: RegionStr=None, *, img: Image.Image=None) -> dict:
-        pass
-
-    async def html_to_plain(self, response) -> str:
-        raise NotImplementedError
+        return NotImplemented
 
     def _process_region(self, image: Image.Image, region: RegionStr) -> List[Region]:
         '''
@@ -208,33 +213,53 @@ class BaseOcrService(object):
         _image = self._get_image_by_region(_image, region)
         return self.image_convert_ocr(_image, request)
 
-    def process_text(self, text: str):
+    async def request_process(self, request: Request, spider_ins=None):
+        '''
+        Modify the Request parameters. Transform interface parameters to implement Ocr api
+        '''
         raise NotImplementedError
+
+    def process_text(self, text: str):
+        '''
+        Hook function: process await response.text()
+        '''
+        return text
 
     def process_json(self, json: dict):
-        raise NotADirectoryError
+        '''
+        Hook function: process await response.json()
+        '''
+        return json
 
     def image_convert_ocr(self, image: Image.Image, request) -> Any:
+        '''
+        Hook function: Converting the local-image to be detected becomes the data that Ocr api eventually sends
+        '''
         raise NotImplementedError
+
+
+class BaiDuOcrResult(str, Enum):
+    BY_ROW = '\n'
+    JOIN = ''
 
 class BaiduOcrService(BaseOcrService):
     '''
     Built-in configuration parameters for 2 services, GENERALBASIC and GENERAL.
-    If you need to use baidu-ocr extra services, configure the parameters to match by use method register_payload
+    If you need to use baidu-ocr extra services, configure the parameters to match by use method update_dft_payload
 
     '''
     name = "Baidu-Ocr"
-    service_types = [
-        service_type for key, service_type in baidu_ocr_types.items()
-    ]
+
+    service_types = list(BaiDuServiceTypes.__members__.keys())
+
     access_token_url = _access_token_url
 
     def __init__(self,
                  app_id,
                  api_key,
                  secret_key,
-                 service_type=BAIDU_GENERALBASIC_TYPE,
-                 seq=''):
+                 service_type: BaiDuServiceTypes=BaiDuServiceTypes.BAIDU_GENERALBASIC_TYPE,
+                 sep: BaiDuOcrResult=BaiDuOcrResult.JOIN):
         '''
         :param app_id: your app_id, See more at https://ai.baidu.com/docs#/OCR-API/top
         :param api_key: your api_key, See more at https://ai.baidu.com/docs#/OCR-API/top
@@ -246,14 +271,13 @@ class BaiduOcrService(BaseOcrService):
         super().__init__()
         self.app_id = app_id
         self.api_key = api_key
-        self.seq = seq
+        self.sep = sep
         self.secret_key = secret_key
         self._service_type = service_type
         self._service_url = None
-        self._service_payload = service_type_dic.get(service_type, {})
-        self._register_payload = False
+        self._service_payload = service_type.dft_payload
         self._ocr_options = {}
-        if service_type not in self.service_types:
+        if service_type.value not in self.service_types:
             raise ServicePayloadsError(
                 'Baidu-Ocr service must in %s \n See more details at '
                 'https://ai.baidu.com/docs#/OCR-API/top' % self.service_types)
@@ -284,42 +308,6 @@ class BaiduOcrService(BaseOcrService):
                 {'Content-Type': 'application/x-www-form-urlencoded'})
             self._headers = headers
 
-    def register_payload(self, payloads: dict) -> None:
-        '''
-        :param payloads: The parameters of the service you requested,is a python dict
-
-        '''
-        self._service_payload = payloads
-        self._register_payload = True
-    
-    @property
-    def service_url(self):
-        '''
-        :return:  Return the servicse url of your task requirements
-        '''
-        if self._service_url is None:
-            self._service_url = baidu_ocr_urls.get(self.service_type[:-4] +
-                                                   'URL')
-        return self._service_url
-
-    @property
-    def service_type(self):
-        '''
-        :return:  Return your service type
-        '''
-        return self._service_type
-
-    @property
-    def service_payload(self):
-        '''
-        :return: Return the parameters that your service needs to send
-        '''
-        if not self._register_payload:
-            raise ValueError(
-                'Should register baidu-ocr payload by use method register_payload,'
-                'See more details at https://ai.baidu.com/docs#/OCR-API/top')
-        return self._service_payload
-
     async def _get_access_token(self):
         '''
         baidu-ocr service need access_token, this method try to get this parameter.
@@ -337,12 +325,10 @@ class BaiduOcrService(BaseOcrService):
                 'access_token'), json.get('expires_in')
         return self._access_token
 
-    async def hook_func(self, request, spider_ins):
-        if self._access_token_semphone is None:
-            self._access_token_semphone = Semaphore(1, loop=spider_ins.loop)
-        if self._access_token is None:
-            async with self._access_token_semphone:
-                await self._get_access_token()
+    def set_payload(self, payloads: dict) -> None:
+        payload = self._service_type.dft_payload.copy()
+        payload.update(payloads)
+        self._service_payload = payloads
 
     def image_convert_ocr(self, _image: Image.Image, request) -> Any:
         _max = max(_image.height, _image.width)
@@ -366,7 +352,7 @@ class BaiduOcrService(BaseOcrService):
     async def _localImage_or_webImage_parse(self, request: Request,
                                             spider_ins=None):
         '''
-        process image-data(loacl-image or web-image) during middle.request
+        process image-data(loacl-image or web-image) update baidu pay_loads
         :param request: Request
         '''
         _raw_url = request.uri
@@ -387,9 +373,6 @@ class BaiduOcrService(BaseOcrService):
                 request._ok = False
                 raise ImageTypeError
             else:
-                # region = spider_ins.ocr_options.get('region', '1,1,0.99,0.99')
-                # self.ocr_options.update(region=region)
-                # print('update_region: ', self.ocr_options)
                 image = self.get_ocr_image(
                     _raw_url,
                     request,
@@ -404,7 +387,6 @@ class BaiduOcrService(BaseOcrService):
         # headers.update({'Content-Type': 'application/x-www-form-urlencoded'})
         await self._localImage_or_webImage_parse(request, spider_ins)
         pay_loads = self._service_payload.copy()
-
         request.metadata = {'image': os.path.basename(request.url)}
         request.uri = request.url
         request.url = self.service_url
@@ -429,22 +411,10 @@ class BaiduOcrService(BaseOcrService):
             if words_result:
                 for dic in words_result:
                     res.append(dic.get('words'))
-                return self.seq.join(res)
-        return ''
-    
-    async def html_to_plain(self, response) -> str:
-        json = await response.json()
-        words_result = json.get('words_result', None)
-        res = []
-        if isinstance(words_result, list):
-            if words_result:
-                for dic in words_result:
-                    res.append(dic.get('words'))
-                return self.seq.join(res)
+                return self.sep.join(res)
         return ''
 
     async def aio_request(self, image_path: str, region: RegionStr=None, *, img: Image.Image=None):
-        self._register_payload = True
         if img is None:
             if image_path[-3:].lower() not in ['jpg', 'png', 'bmp', 'peg']:
                 logger.error('Baidu does not support this type of picture , '
@@ -455,16 +425,7 @@ class BaiduOcrService(BaseOcrService):
             image = img
 
         if region:
-            boxs = self._process_region(image, region)
-            imgs = [image.crop(box) for box in boxs]
-            width, height = list(zip(*[img.size for img in imgs]))
-            max_width = max(width)
-            img_new = Image.new('RGB', (max_width, sum(height)))
-            for index, img in enumerate(imgs):
-                box = (0, sum(height[:index]), img.width,
-                       sum(height[:index + 1]))
-                img_new.paste(img, box)
-            image = img_new
+            image = self._get_image_by_region(image, region)
 
         image_io = BytesIO()
         image.save(image_io, format='PNG')
@@ -479,9 +440,7 @@ class BaiduOcrService(BaseOcrService):
                              data=payloads) as r:
             return await r.json()
         
-
     def request(self, image_path: str=None, region: RegionStr=None, *, img: Image.Image=None):
-        self._register_payload = True
         if img is None:
             if image_path[-3:].lower() not in ['jpg', 'png', 'bmp', 'peg']:
                 logger.error('Baidu does not support this type of picture , '
@@ -492,17 +451,7 @@ class BaiduOcrService(BaseOcrService):
             image = img
 
         if region:
-            boxs = self._process_region(image, region)
-            imgs = [image.crop(box) for box in boxs]
-            width, height = list(zip(*[img.size for img in imgs]))
-            max_width = max(width)
-            img_new = Image.new('RGB', (max_width, sum(height)))
-            for index, img in enumerate(imgs):
-                box = (0, sum(height[:index]), img.width,
-                       sum(height[:index + 1]))
-                img_new.paste(img, box)
-            image = img_new
-
+            image = self._get_image_by_region(image, region)
         image_io = BytesIO()
         image.save(image_io, format='PNG')
         b64_data = base64.b64encode(image_io.getvalue()).decode()
@@ -514,5 +463,3 @@ class BaiduOcrService(BaseOcrService):
                              data=payloads).json()
         return json
 
-    def __repr__(self):
-        return f'{self.name}<{self.service_url}, {self.service_type}>'
