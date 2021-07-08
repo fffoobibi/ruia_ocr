@@ -10,7 +10,7 @@ setup(
     license='MIT',
     url=r'https://github.com/fffoobibi/ruia_ocr',
     packages=find_packages(),
-    install_requires=['baidu_aip>=2.2.17', 'ruia>=0.6.2'],
+    install_requires=['baidu_aip>=2.2.17', 'ruia>=0.6.2','Pillow'],
     requires=['baidu_aip', 'ruia'],
     classifiers=['Programming Language :: Python :: 3.6',
                  'Programming Language :: Python :: 3.7',

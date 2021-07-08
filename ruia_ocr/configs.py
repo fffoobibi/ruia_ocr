@@ -35,15 +35,15 @@ def _get_baidu_services_configs():
                 pay_load["detect_direction"] = "true"
                 pay_load["detect_language"] = "true"
                 pay_load["probability"] = "true"
-            baidu_ocr_types[_key_type] = _key_type
-            baidu_ocr_services_configs[_key_type] = {
+            _baidu_ocr_types[_key_type] = _key_type
+            _baidu_ocr_services_configs[_key_type] = {
                 'url': value,
                 'pay_load': pay_load.copy()
             }
 
-baidu_ocr_services_configs = {}
+_baidu_ocr_services_configs = {}
 
-baidu_ocr_types = {}
+_baidu_ocr_types = {}
 
 _get_baidu_services_configs()
 
@@ -88,19 +88,19 @@ class BaiDuServiceTypes(BaseServiceTypes):
 
         @property
         def dft_payload(self) -> dict:
-            config = baidu_ocr_services_configs.get(self, None)
+            config = _baidu_ocr_services_configs.get(self, None)
             if config:
                 return config.get('pay_load', {}).copy()
             return {}
 
         @property
         def url(self) -> str:
-            config = baidu_ocr_services_configs.get(self, None)
+            config = _baidu_ocr_services_configs.get(self, None)
             if config:
                 return config.get('url', '')
             return ''
 
         def update_dft_payload(self, value: dict):
-            config = baidu_ocr_services_configs.get(self)
+            config = _baidu_ocr_services_configs.get(self)
             if config:
                 config['pay_load'].update(value)
